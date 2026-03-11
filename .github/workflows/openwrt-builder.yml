@@ -109,13 +109,29 @@ jobs:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
+    # ========== 新增：打包 ipk 文件 ==========
+    - name: Package ipk files
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin
+        if [ -d packages ]; then
+          # 生成带设备名和日期的压缩包
+          PKG_NAME="ipk-packages${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}.tar.gz"
+          tar -czf "${PKG_NAME}" packages
+          echo "IPK_PACKAGE=$PWD/${PKG_NAME}" >> $GITHUB_ENV
+          echo "✅ ipk 压缩包已创建：${PKG_NAME}"
+        else
+          echo "⚠️ 未找到 packages 目录，跳过 ipk 打包。"
+          echo "IPK_PACKAGE=" >> $GITHUB_ENV
+        fi
+
     - name: Organize files
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
-        # 注释掉删除 packages 的命令，使 Release 同时包含固件和 ipk 目录
-        # rm -rf packages
+        # 删除 packages 目录（但 ipk 已单独打包，此处删除不影响 Release）
+        rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -132,8 +148,7 @@ jobs:
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
-        # 如果有其他上传服务（如 GoFile）可以在这里添加链接，例如：
-        # [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
+        # 如果有其他上传服务（如 GoFile）可以在此添加链接
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
@@ -145,6 +160,16 @@ jobs:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
+
+    # ========== 新增：上传 ipk 压缩包到同一个 Release ==========
+    - name: Upload ipk packages to release
+      uses: softprops/action-gh-release@master
+      if: env.IPK_PACKAGE != '' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        files: ${{ env.IPK_PACKAGE }}
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
