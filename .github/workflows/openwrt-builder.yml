@@ -1,7 +1,7 @@
 #
 # https://github.com/P3TERX/Actions-OpenWrt
 #
-# File: .github/workflows/openwrt-bulder.yml
+# File: .github/workflows/openwrt-builder.yml
 # Description: Build OpenWrt using GitHub Actions
 #
 # Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
@@ -114,7 +114,8 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
+        # 注释掉删除 packages 的命令，使 Release 同时包含固件和 ipk 目录
+        # rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -131,7 +132,8 @@ jobs:
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
-        [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
+        # 如果有其他上传服务（如 GoFile）可以在这里添加链接，例如：
+        # [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
